@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}AEMS — Questionário de Segurança Digital{% endblock %}
+
+{% block content %}
+<div class="text-center mb-10">
+  <h1 class="text-3xl font-bold mb-2">Diagnóstico de Segurança Digital</h1>
+  <p class="text-gray-400">Responda as {{ perguntas|length }} perguntas abaixo para descobrir seu nível de risco.</p>
+</div>
+
+<!-- Barra de progresso -->
+<div class="mb-8">
+  <div class="flex justify-between text-xs text-gray-500 mb-1">
+    <span id="progresso-label">Pergunta 1 de {{ perguntas|length }}</span>
+    <span id="progresso-pct">0%</span>
+  </div>
+  <div class="w-full bg-gray-800 rounded-full h-2">
+    <div id="progresso-barra"
+         class="bg-blue-500 h-2 rounded-full transition-all duration-300"
+         style="width: 0%"></div>
+  </div>
+</div>
+
+<form id="quiz-form" method="POST" action="{{ url_for('bp.diagnostico') }}" novalidate>
+  <!-- Nome opcional -->
+  <div class="mb-8">
+    <input
+      type="text"
+      name="nome"
+      placeholder="Seu nome (opcional)"
+      class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm
+             placeholder-gray-500 focus:outline-none focus:border-blue-500 transition"
+    />
+  </div>
+
+  <!-- Perguntas -->
+  {% for pergunta in perguntas %}
+  <div class="quiz-card hidden" data-index="{{ loop.index0 }}">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-4">
+      <p class="text-xs text-gray-500 mb-3 font-mono">
+        {{ "%02d"|format(loop.index) }} / {{ "%02d"|format(perguntas|length) }}
+      </p>
+      <p class="text-lg font-medium mb-6">{{ pergunta.texto }}</p>
+
+      <div class="flex gap-4">
+        <label class="opcao-label flex-1 cursor-pointer">
+          <input
+            type="radio"
+            name="pergunta_{{ pergunta.id }}"
+            value="sim"
+            class="sr-only opcao-radio"
+            required
+          />
+          <span class="opcao-btn block text-center py-3 rounded-lg border border-gray-700
+                       bg-gray-800 hover:border-green-500 hover:bg-green-900/20 transition
+                       font-medium text-sm">
+            Sim
+          </span>
+        </label>
+
+        <label class="opcao-label flex-1 cursor-pointer">
+          <input
+            type="radio"
+            name="pergunta_{{ pergunta.id }}"
+            value="nao"
+            class="sr-only opcao-radio"
+          />
+          <span class="opcao-btn block text-center py-3 rounded-lg border border-gray-700
+                       bg-gray-800 hover:border-red-500 hover:bg-red-900/20 transition
+                       font-medium text-sm">
+            Não
+          </span>
+        </label>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Navegação -->
+  <div class="flex justify-between items-center mt-6" id="navegacao">
+    <button
+      type="button"
+      id="btn-anterior"
+      class="px-5 py-2.5 rounded-lg border border-gray-700 text-sm font-medium
+             hover:bg-gray-800 transition disabled:opacity-30 disabled:cursor-not-allowed"
+      disabled
+    >
+      &#8592; Anterior
+    </button>
+
+    <button
+      type="button"
+      id="btn-proxima"
+      class="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition"
+    >
+      Próxima &#8594;
+    </button>
+
+    <button
+      type="submit"
+      id="btn-enviar"
+      class="hidden px-6 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-sm font-semibold transition"
+    >
+      Ver Meu Diagnóstico &#10003;
+    </button>
+  </div>
+</form>
+{% endblock %}

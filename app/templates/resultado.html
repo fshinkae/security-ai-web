@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}AEMS — Resultado do Diagnóstico{% endblock %}
+
+{% block content %}
+
+{% set nivel = diagnostico.nivel_risco %}
+{% if nivel == "alto" %}
+  {% set cor_bg   = "bg-red-900/30" %}
+  {% set cor_borda= "border-red-700" %}
+  {% set cor_texto= "text-red-400" %}
+  {% set cor_barra= "bg-red-500" %}
+{% elif nivel == "medio" %}
+  {% set cor_bg   = "bg-yellow-900/30" %}
+  {% set cor_borda= "border-yellow-700" %}
+  {% set cor_texto= "text-yellow-400" %}
+  {% set cor_barra= "bg-yellow-400" %}
+{% else %}
+  {% set cor_bg   = "bg-green-900/30" %}
+  {% set cor_borda= "border-green-700" %}
+  {% set cor_texto= "text-green-400" %}
+  {% set cor_barra= "bg-green-500" %}
+{% endif %}
+
+<div class="text-center mb-10">
+  {% if diagnostico.nome %}
+    <p class="text-gray-400 text-sm mb-1">Diagnóstico de <span class="text-white font-medium">{{ diagnostico.nome }}</span></p>
+  {% endif %}
+  <h1 class="text-3xl font-bold">Resultado do Diagnóstico</h1>
+</div>
+
+<!-- Pontuação -->
+<div class="{{ cor_bg }} border {{ cor_borda }} rounded-xl p-6 mb-6 text-center">
+  <p class="text-sm text-gray-400 mb-1">Pontuação de Risco</p>
+  <p class="text-5xl font-extrabold {{ cor_texto }}">{{ diagnostico.pontuacao }}<span class="text-2xl text-gray-500">/128</span></p>
+
+  <div class="w-full bg-gray-800 rounded-full h-3 mt-4">
+    <div class="{{ cor_barra }} h-3 rounded-full transition-all"
+         style="width: {{ (diagnostico.pontuacao / 128 * 100)|round|int }}%"></div>
+  </div>
+</div>
+
+<!-- Nível de risco -->
+<div class="flex justify-center mb-8">
+  <span class="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold
+               {{ cor_bg }} {{ cor_texto }} border {{ cor_borda }}">
+    {% if nivel == "alto" %}&#9888;{% elif nivel == "medio" %}&#9711;{% else %}&#10003;{% endif %}
+    {{ diagnostico.label_risco }}
+  </span>
+</div>
+
+<!-- Recomendações -->
+{% if diagnostico.recomendacoes %}
+<div class="mb-6">
+  <h2 class="text-base font-semibold text-gray-300 mb-3">Recomendações</h2>
+  <ul class="space-y-2">
+    {% for rec in diagnostico.recomendacoes %}
+    <li class="flex gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-300">
+      <span class="text-blue-400 mt-0.5">&#8226;</span>
+      <span>{{ rec }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- Falhas detectadas -->
+{% if diagnostico.falhas_detectadas %}
+<div class="mb-8">
+  <h2 class="text-base font-semibold text-gray-300 mb-3">Hábitos Inseguros Detectados</h2>
+  <ul class="space-y-2">
+    {% for falha in diagnostico.falhas_detectadas %}
+    <li class="flex gap-3 bg-gray-900 border border-red-900/50 rounded-lg px-4 py-3 text-sm text-gray-400">
+      <span class="text-red-500 mt-0.5">&#10005;</span>
+      <span>{{ perguntas_map.get(falha, falha) }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% else %}
+<div class="mb-8 bg-green-900/20 border border-green-800 rounded-xl px-4 py-4 text-sm text-green-400 text-center">
+  Nenhum hábito inseguro detectado. Excelente! Continue assim.
+</div>
+{% endif %}
+
+<!-- Ações -->
+<div class="flex flex-col sm:flex-row gap-3 items-center justify-center">
+  <a href="{{ url_for('bp.index') }}"
+     class="px-5 py-2.5 rounded-lg border border-gray-700 text-sm font-medium hover:bg-gray-800 transition">
+    &#8635; Fazer Novamente
+  </a>
+
+  <button
+    onclick="navigator.clipboard.writeText(window.location.href).then(() => this.textContent = '&#10003; Link copiado!').catch(() => {})"
+    class="px-5 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-sm font-medium hover:bg-gray-700 transition"
+  >
+    &#128279; Copiar Link do Resultado
+  </button>
+
+  <a href="{{ url_for('bp.historico') }}"
+     class="px-5 py-2.5 rounded-lg border border-gray-700 text-sm font-medium hover:bg-gray-800 transition text-gray-400">
+    Ver Histórico
+  </a>
+</div>
+
+{% endblock %}

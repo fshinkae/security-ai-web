@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}AEMS — Histórico de Diagnósticos{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex items-center justify-between">
+  <h1 class="text-2xl font-bold">Histórico de Diagnósticos</h1>
+
+  <!-- Filtro por nível -->
+  <form method="GET" class="flex gap-2 items-center text-sm">
+    <select name="nivel"
+            onchange="this.form.submit()"
+            class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+      <option value=""       {% if not nivel %}selected{% endif %}>Todos os níveis</option>
+      <option value="baixo"  {% if nivel == "baixo"  %}selected{% endif %}>Baixo</option>
+      <option value="medio"  {% if nivel == "medio"  %}selected{% endif %}>Médio</option>
+      <option value="alto"   {% if nivel == "alto"   %}selected{% endif %}>Alto</option>
+    </select>
+  </form>
+</div>
+
+{% if diagnosticos %}
+<div class="overflow-x-auto rounded-xl border border-gray-800">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-900 text-gray-400 text-left">
+      <tr>
+        <th class="px-4 py-3 font-medium">Nome</th>
+        <th class="px-4 py-3 font-medium text-center">Pontuação</th>
+        <th class="px-4 py-3 font-medium text-center">Nível</th>
+        <th class="px-4 py-3 font-medium">Data</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-800">
+      {% for d in diagnosticos %}
+      <tr class="hover:bg-gray-900/50 transition">
+        <td class="px-4 py-3 text-gray-300">{{ d.nome or "—" }}</td>
+        <td class="px-4 py-3 text-center font-mono">{{ d.pontuacao }}/128</td>
+        <td class="px-4 py-3 text-center">
+          {% if d.nivel_risco == "alto" %}
+            <span class="text-red-400 text-xs font-semibold uppercase tracking-wide">Alto</span>
+          {% elif d.nivel_risco == "medio" %}
+            <span class="text-yellow-400 text-xs font-semibold uppercase tracking-wide">Médio</span>
+          {% else %}
+            <span class="text-green-400 text-xs font-semibold uppercase tracking-wide">Baixo</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-500 text-xs">{{ d.criado_em[:10] }}</td>
+        <td class="px-4 py-3">
+          <a href="{{ url_for('bp.resultado', diagnostico_id=d.id) }}"
+             class="text-blue-400 hover:text-blue-300 text-xs underline">Ver</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Paginação -->
+<div class="flex justify-between items-center mt-6 text-sm text-gray-500">
+  {% if pagina > 1 %}
+    <a href="?pagina={{ pagina - 1 }}&nivel={{ nivel }}"
+       class="px-4 py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition text-white text-xs">
+      &#8592; Anterior
+    </a>
+  {% else %}
+    <span></span>
+  {% endif %}
+
+  <span>Página {{ pagina }}</span>
+
+  {% if tem_proxima %}
+    <a href="?pagina={{ pagina + 1 }}&nivel={{ nivel }}"
+       class="px-4 py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition text-white text-xs">
+      Próxima &#8594;
+    </a>
+  {% else %}
+    <span></span>
+  {% endif %}
+</div>
+
+{% else %}
+<div class="text-center py-16 text-gray-500">
+  <p class="text-4xl mb-4">&#128202;</p>
+  <p>Nenhum diagnóstico encontrado.</p>
+  <a href="{{ url_for('bp.index') }}"
+     class="inline-block mt-4 text-blue-400 hover:text-blue-300 text-sm underline">
+    Fazer o primeiro diagnóstico
+  </a>
+</div>
+{% endif %}
+{% endblock %}

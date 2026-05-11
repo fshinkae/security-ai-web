@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}AEMS — Erro {{ codigo }}{% endblock %}
+
+{% block content %}
+<div class="text-center py-16">
+  <p class="text-6xl font-extrabold text-gray-700 mb-4">{{ codigo }}</p>
+  <h1 class="text-xl font-semibold text-gray-300 mb-2">
+    {% if codigo == 404 %}Diagnóstico não encontrado{% else %}Algo deu errado{% endif %}
+  </h1>
+  <p class="text-gray-500 text-sm mb-8 max-w-sm mx-auto">{{ mensagem }}</p>
+  <a href="{{ url_for('bp.index') }}"
+     class="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition">
+    &#8592; Voltar ao início
+  </a>
+</div>
+{% endblock %}
