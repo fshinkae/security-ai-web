@@ -1,113 +1,75 @@
 {% extends "base.html" %}
-
-{% block title %}AEMS — Questionário de Segurança Digital{% endblock %}
+{% block title %}AEMS — Diagnóstico de Segurança Digital{% endblock %}
 
 {% block content %}
-<div class="text-center mb-10">
-  <h1 class="text-3xl font-bold mb-2">Diagnóstico de Segurança Digital</h1>
-  <p class="text-gray-400">Responda as perguntas abaixo para descobrir seu nível de risco.</p>
-</div>
 
-<!-- Barra de progresso -->
-<div class="mb-8">
-  <div class="flex justify-between text-xs text-gray-500 mb-1">
-    <span id="progresso-label">Pergunta 1</span>
-    <span id="progresso-grupo"></span>
-  </div>
-  <div class="w-full bg-gray-800 rounded-full h-2">
-    <div id="progresso-barra"
-         class="bg-blue-500 h-2 rounded-full transition-all duration-300"
-         style="width: 0%"></div>
-  </div>
+<!-- Header -->
+<div class="mb-6 fade-up">
+  <p class="cyber-eyebrow mb-1">// INICIAR DIAGNÓSTICO</p>
+  <h1 class="text-2xl font-bold text-white">Segurança Digital</h1>
+  <p class="text-sm mt-1" style="color:var(--c-muted)">5 perguntas · ~2 minutos</p>
 </div>
 
 <form id="quiz-form" method="POST" action="{{ url_for('bp.diagnostico') }}" novalidate>
   <input type="hidden" id="perguntas-respondidas" name="perguntas_respondidas" value="">
 
+  <!-- Hidden radio inputs para todas as 31 perguntas -->
+  {% for nid, node in arvore.items() %}
+  <input class="sr-only" type="radio" name="pergunta_{{ node.id }}" value="sim">
+  <input class="sr-only" type="radio" name="pergunta_{{ node.id }}" value="nao">
+  {% endfor %}
+
   <!-- Nome opcional -->
-  <div class="mb-8">
-    <input
-      type="text"
-      name="nome"
-      placeholder="Seu nome (opcional)"
-      class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm
-             placeholder-gray-500 focus:outline-none focus:border-blue-500 transition"
-    />
+  <div class="mb-5">
+    <input type="text" name="nome" placeholder="Seu nome (opcional)"
+           class="cyber-input" autocomplete="name" />
   </div>
 
-  <!-- Container da árvore de perguntas -->
-  <div id="quiz-container" data-questao-inicial="{{ questao_inicial }}">
+  <!-- Progresso -->
+  <div class="mb-5">
+    <div class="flex items-center justify-between mb-2">
+      <span id="progresso-grupo" class="card-eyebrow" style="margin-bottom:0">// ...</span>
+      <span id="step-counter" class="step-badge">1 / 5</span>
+    </div>
+    <div class="progress-track">
+      <div id="progresso-barra" class="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- ── SWIPE STAGE ───────────────────────────────────────── -->
+  <div id="quiz-container"
+       data-questao-inicial="{{ questao_inicial }}"
+       class="swipe-stage mb-3">
+
     {% for nid, node in arvore.items() %}
-    <div class="quiz-card hidden"
+    <div class="quiz-card"
          data-id="{{ node.id }}"
          data-grupo="{{ node.grupo }}"
          data-proxima-sim="{{ node.proxima_sim or '' }}"
          data-proxima-nao="{{ node.proxima_nao or '' }}">
-      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-4">
-        <p class="text-xs text-gray-500 mb-3 font-mono">// {{ node.grupo|upper }}</p>
-        <p class="text-lg font-medium mb-6">{{ node.texto }}</p>
 
-        <div class="flex gap-4">
-          <label class="opcao-label flex-1 cursor-pointer">
-            <input
-              type="radio"
-              name="pergunta_{{ node.id }}"
-              value="sim"
-              class="sr-only opcao-radio"
-            />
-            <span class="opcao-btn block text-center py-3 rounded-lg border border-gray-700
-                         bg-gray-800 hover:border-green-500 hover:bg-green-900/20 transition
-                         font-medium text-sm">
-              Sim
-            </span>
-          </label>
+      <!-- Indicadores de deslize -->
+      <div class="swipe-indicator swipe-sim">SIM ✓</div>
+      <div class="swipe-indicator swipe-nao">✗ NÃO</div>
 
-          <label class="opcao-label flex-1 cursor-pointer">
-            <input
-              type="radio"
-              name="pergunta_{{ node.id }}"
-              value="nao"
-              class="sr-only opcao-radio"
-            />
-            <span class="opcao-btn block text-center py-3 rounded-lg border border-gray-700
-                         bg-gray-800 hover:border-red-500 hover:bg-red-900/20 transition
-                         font-medium text-sm">
-              Não
-            </span>
-          </label>
-        </div>
-      </div>
+      <!-- Conteúdo -->
+      <p class="card-eyebrow">// {{ node.grupo|upper }}</p>
+      <p class="card-question">{{ node.texto }}</p>
     </div>
     {% endfor %}
+
   </div>
 
-  <!-- Navegação -->
-  <div class="flex justify-between items-center mt-6" id="navegacao">
-    <button
-      type="button"
-      id="btn-anterior"
-      class="px-5 py-2.5 rounded-lg border border-gray-700 text-sm font-medium
-             hover:bg-gray-800 transition disabled:opacity-30 disabled:cursor-not-allowed"
-      disabled
-    >
-      &#8592; Anterior
-    </button>
+  <!-- Hint de swipe -->
+  <p class="swipe-hint">← ARRASTE O CARD PARA RESPONDER →</p>
 
-    <button
-      type="button"
-      id="btn-proxima"
-      class="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition"
-    >
-      Próxima &#8594;
-    </button>
-
-    <button
-      type="submit"
-      id="btn-enviar"
-      class="hidden px-6 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-sm font-semibold transition"
-    >
-      Ver Meu Diagnóstico &#10003;
-    </button>
+  <!-- Botões de toque (fallback acessível) -->
+  <div class="flex items-stretch gap-3 mt-4">
+    <button type="button" id="btn-anterior" class="btn-back" disabled aria-label="Voltar">↩</button>
+    <button type="button" id="btn-nao"      class="btn-nao flex-1">✗ NÃO</button>
+    <button type="button" id="btn-sim"      class="btn-sim flex-1">SIM ✓</button>
+    <div style="min-width:52px"></div>
   </div>
+
 </form>
 {% endblock %}
