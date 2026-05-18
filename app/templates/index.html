@@ -5,14 +5,14 @@
 {% block content %}
 <div class="text-center mb-10">
   <h1 class="text-3xl font-bold mb-2">Diagnóstico de Segurança Digital</h1>
-  <p class="text-gray-400">Responda as {{ perguntas|length }} perguntas abaixo para descobrir seu nível de risco.</p>
+  <p class="text-gray-400">Responda as perguntas abaixo para descobrir seu nível de risco.</p>
 </div>
 
 <!-- Barra de progresso -->
 <div class="mb-8">
   <div class="flex justify-between text-xs text-gray-500 mb-1">
-    <span id="progresso-label">Pergunta 1 de {{ perguntas|length }}</span>
-    <span id="progresso-pct">0%</span>
+    <span id="progresso-label">Pergunta 1</span>
+    <span id="progresso-grupo"></span>
   </div>
   <div class="w-full bg-gray-800 rounded-full h-2">
     <div id="progresso-barra"
@@ -22,6 +22,8 @@
 </div>
 
 <form id="quiz-form" method="POST" action="{{ url_for('bp.diagnostico') }}" novalidate>
+  <input type="hidden" id="perguntas-respondidas" name="perguntas_respondidas" value="">
+
   <!-- Nome opcional -->
   <div class="mb-8">
     <input
@@ -33,48 +35,51 @@
     />
   </div>
 
-  <!-- Perguntas -->
-  {% for pergunta in perguntas %}
-  <div class="quiz-card hidden" data-index="{{ loop.index0 }}">
-    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-4">
-      <p class="text-xs text-gray-500 mb-3 font-mono">
-        {{ "%02d"|format(loop.index) }} / {{ "%02d"|format(perguntas|length) }}
-      </p>
-      <p class="text-lg font-medium mb-6">{{ pergunta.texto }}</p>
+  <!-- Container da árvore de perguntas -->
+  <div id="quiz-container" data-questao-inicial="{{ questao_inicial }}">
+    {% for nid, node in arvore.items() %}
+    <div class="quiz-card hidden"
+         data-id="{{ node.id }}"
+         data-grupo="{{ node.grupo }}"
+         data-proxima-sim="{{ node.proxima_sim or '' }}"
+         data-proxima-nao="{{ node.proxima_nao or '' }}">
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-4">
+        <p class="text-xs text-gray-500 mb-3 font-mono">// {{ node.grupo|upper }}</p>
+        <p class="text-lg font-medium mb-6">{{ node.texto }}</p>
 
-      <div class="flex gap-4">
-        <label class="opcao-label flex-1 cursor-pointer">
-          <input
-            type="radio"
-            name="pergunta_{{ pergunta.id }}"
-            value="sim"
-            class="sr-only opcao-radio"
-            required
-          />
-          <span class="opcao-btn block text-center py-3 rounded-lg border border-gray-700
-                       bg-gray-800 hover:border-green-500 hover:bg-green-900/20 transition
-                       font-medium text-sm">
-            Sim
-          </span>
-        </label>
+        <div class="flex gap-4">
+          <label class="opcao-label flex-1 cursor-pointer">
+            <input
+              type="radio"
+              name="pergunta_{{ node.id }}"
+              value="sim"
+              class="sr-only opcao-radio"
+            />
+            <span class="opcao-btn block text-center py-3 rounded-lg border border-gray-700
+                         bg-gray-800 hover:border-green-500 hover:bg-green-900/20 transition
+                         font-medium text-sm">
+              Sim
+            </span>
+          </label>
 
-        <label class="opcao-label flex-1 cursor-pointer">
-          <input
-            type="radio"
-            name="pergunta_{{ pergunta.id }}"
-            value="nao"
-            class="sr-only opcao-radio"
-          />
-          <span class="opcao-btn block text-center py-3 rounded-lg border border-gray-700
-                       bg-gray-800 hover:border-red-500 hover:bg-red-900/20 transition
-                       font-medium text-sm">
-            Não
-          </span>
-        </label>
+          <label class="opcao-label flex-1 cursor-pointer">
+            <input
+              type="radio"
+              name="pergunta_{{ node.id }}"
+              value="nao"
+              class="sr-only opcao-radio"
+            />
+            <span class="opcao-btn block text-center py-3 rounded-lg border border-gray-700
+                         bg-gray-800 hover:border-red-500 hover:bg-red-900/20 transition
+                         font-medium text-sm">
+              Não
+            </span>
+          </label>
+        </div>
       </div>
     </div>
+    {% endfor %}
   </div>
-  {% endfor %}
 
   <!-- Navegação -->
   <div class="flex justify-between items-center mt-6" id="navegacao">

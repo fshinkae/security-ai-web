@@ -6,101 +6,469 @@
 
 {% set nivel = diagnostico.nivel_risco %}
 {% if nivel == "alto" %}
-  {% set cor_bg   = "bg-red-900/30" %}
-  {% set cor_borda= "border-red-700" %}
-  {% set cor_texto= "text-red-400" %}
-  {% set cor_barra= "bg-red-500" %}
+  {% set cor_bg    = "bg-red-900/30" %}
+  {% set cor_borda = "border-red-700" %}
+  {% set cor_texto = "text-red-400" %}
+  {% set cor_barra = "bg-red-500" %}
 {% elif nivel == "medio" %}
-  {% set cor_bg   = "bg-yellow-900/30" %}
-  {% set cor_borda= "border-yellow-700" %}
-  {% set cor_texto= "text-yellow-400" %}
-  {% set cor_barra= "bg-yellow-400" %}
+  {% set cor_bg    = "bg-yellow-900/30" %}
+  {% set cor_borda = "border-yellow-700" %}
+  {% set cor_texto = "text-yellow-400" %}
+  {% set cor_barra = "bg-yellow-400" %}
 {% else %}
-  {% set cor_bg   = "bg-green-900/30" %}
-  {% set cor_borda= "border-green-700" %}
-  {% set cor_texto= "text-green-400" %}
-  {% set cor_barra= "bg-green-500" %}
+  {% set cor_bg    = "bg-green-900/30" %}
+  {% set cor_borda = "border-green-700" %}
+  {% set cor_texto = "text-green-400" %}
+  {% set cor_barra = "bg-green-500" %}
 {% endif %}
 
-<div class="text-center mb-10">
+<!-- Cabeçalho -->
+<div class="text-center mb-8">
   {% if diagnostico.nome %}
     <p class="text-gray-400 text-sm mb-1">Diagnóstico de <span class="text-white font-medium">{{ diagnostico.nome }}</span></p>
   {% endif %}
-  <h1 class="text-3xl font-bold">Resultado do Diagnóstico</h1>
-</div>
+  <h1 class="text-3xl font-bold mb-4">Resultado do Diagnóstico</h1>
 
-<!-- Pontuação -->
-<div class="{{ cor_bg }} border {{ cor_borda }} rounded-xl p-6 mb-6 text-center">
-  <p class="text-sm text-gray-400 mb-1">Pontuação de Risco</p>
-  <p class="text-5xl font-extrabold {{ cor_texto }}">{{ diagnostico.pontuacao }}<span class="text-2xl text-gray-500">/128</span></p>
-
-  <div class="w-full bg-gray-800 rounded-full h-3 mt-4">
-    <div class="{{ cor_barra }} h-3 rounded-full transition-all"
-         style="width: {{ (diagnostico.pontuacao / 128 * 100)|round|int }}%"></div>
+  <div class="{{ cor_bg }} border {{ cor_borda }} rounded-xl p-5 inline-block min-w-64">
+    <p class="text-xs font-mono text-gray-500 mb-1">// PONTUAÇÃO DE RISCO</p>
+    <p class="text-4xl font-extrabold {{ cor_texto }} mb-3">
+      {{ diagnostico.pontuacao }} <span class="text-base text-gray-500">pts</span>
+    </p>
+    <div class="w-full bg-gray-800 rounded-full h-1.5 mb-3">
+      <div class="{{ cor_barra }} h-1.5 rounded-full"
+           style="width: {{ [diagnostico.pontuacao * 100 // 70, 100]|min }}%"></div>
+    </div>
+    <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold font-mono
+                 {{ cor_bg }} {{ cor_texto }} border {{ cor_borda }}">
+      {% if nivel == "alto" %}&#9888;{% elif nivel == "medio" %}&#9711;{% else %}&#10003;{% endif %}
+      {{ diagnostico.label_risco }}
+    </span>
   </div>
 </div>
 
-<!-- Nível de risco -->
-<div class="flex justify-center mb-8">
-  <span class="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold
-               {{ cor_bg }} {{ cor_texto }} border {{ cor_borda }}">
-    {% if nivel == "alto" %}&#9888;{% elif nivel == "medio" %}&#9711;{% else %}&#10003;{% endif %}
-    {{ diagnostico.label_risco }}
-  </span>
+<!-- ═══════════════════════════════════════════════════════════
+     GRAFO — ÁRVORE BINÁRIA DE DECISÃO
+     ═══════════════════════════════════════════════════════════ -->
+{% if tree_data %}
+<div class="mb-10">
+  <p class="text-xs font-mono text-gray-500 mb-4 tracking-widest">// ÁRVORE BINÁRIA DE DECISÃO</p>
+
+  <!-- SVG centralizado -->
+  <div class="flex flex-col items-center gap-4">
+
+    <div class="w-full overflow-x-auto rounded-xl border border-gray-800 bg-gray-950 flex justify-center py-4">
+      <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <!-- Painel de info (click) + Legenda lado a lado abaixo do grafo -->
+    <div class="flex flex-col sm:flex-row gap-3 w-full max-w-2xl">
+      <div id="node-info"
+           class="flex-1 rounded-xl border border-gray-800 bg-gray-900 p-5 min-h-20">
+        <p class="text-xs font-mono text-gray-700 text-center py-1">
+          ↑ clique em um nó para ver detalhes
+        </p>
+      </div>
+      <div class="sm:w-44 shrink-0 rounded-xl border border-gray-800 bg-gray-900 px-4 py-3 text-xs font-mono space-y-2 text-gray-500 self-start">
+        <div class="flex items-center gap-2">
+          <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#450a0a" stroke="#ef4444" stroke-width="2"/></svg>
+          Inseguro
+        </div>
+        <div class="flex items-center gap-2">
+          <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#14532d" stroke="#22c55e" stroke-width="2"/></svg>
+          Seguro
+        </div>
+        <div class="flex items-center gap-2">
+          <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#111827" stroke="#374151" stroke-width="1" opacity="0.4"/></svg>
+          Não visitado
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
-<!-- Recomendações -->
-{% if diagnostico.recomendacoes %}
-<div class="mb-6">
-  <h2 class="text-base font-semibold text-gray-300 mb-3">Recomendações</h2>
-  <ul class="space-y-2">
-    {% for rec in diagnostico.recomendacoes %}
-    <li class="flex gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-300">
-      <span class="text-blue-400 mt-0.5">&#8226;</span>
-      <span>{{ rec }}</span>
-    </li>
-    {% endfor %}
-  </ul>
-</div>
+<script>
+const TREE_DATA = {{ tree_data | tojson }};
+</script>
 {% endif %}
 
-<!-- Falhas detectadas -->
-{% if diagnostico.falhas_detectadas %}
-<div class="mb-8">
-  <h2 class="text-base font-semibold text-gray-300 mb-3">Hábitos Inseguros Detectados</h2>
-  <ul class="space-y-2">
-    {% for falha in diagnostico.falhas_detectadas %}
-    <li class="flex gap-3 bg-gray-900 border border-red-900/50 rounded-lg px-4 py-3 text-sm text-gray-400">
-      <span class="text-red-500 mt-0.5">&#10005;</span>
-      <span>{{ perguntas_map.get(falha, falha) }}</span>
-    </li>
-    {% endfor %}
-  </ul>
+<!-- ═══════════════════════════════════════════════════════════
+     ACCORDION — DETALHES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="space-y-2" id="accordion">
+
+  <!-- Hábitos Inseguros -->
+  <div class="accordion-item">
+    <button class="accordion-btn w-full flex justify-between items-center px-4 py-3
+                   bg-gray-900 border border-red-900/40 rounded-xl text-sm font-medium
+                   text-gray-200 hover:bg-gray-800 transition"
+            onclick="toggleAccordion(this)">
+      <span class="flex items-center gap-2">
+        <span class="text-red-500 font-mono text-xs">[✗]</span>
+        Hábitos Inseguros Detectados
+        <span class="text-xs font-mono text-red-400">({{ diagnostico.falhas_detectadas|length }})</span>
+      </span>
+      <span class="accordion-chevron text-gray-500 transition-transform duration-200">&#8964;</span>
+    </button>
+    <div class="accordion-body overflow-hidden max-h-0 transition-all duration-300 ease-in-out">
+      <div class="px-1 pt-2 pb-1 space-y-2">
+        {% if diagnostico.falhas_detectadas %}
+          {% for falha in diagnostico.falhas_detectadas %}
+          <div class="flex gap-3 bg-gray-900 border border-red-900/30 rounded-lg px-4 py-3 text-sm text-gray-400">
+            <span class="text-red-500 font-mono shrink-0">✗</span>
+            <span>{{ perguntas_map.get(falha, falha) }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-4 text-green-400 font-mono text-sm">
+            [ NENHUM HÁBITO INSEGURO DETECTADO ]
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Dicas de Segurança -->
+  <div class="accordion-item">
+    <button class="accordion-btn w-full flex justify-between items-center px-4 py-3
+                   bg-gray-900 border border-cyan-900/40 rounded-xl text-sm font-medium
+                   text-gray-200 hover:bg-gray-800 transition"
+            onclick="toggleAccordion(this)">
+      <span class="flex items-center gap-2">
+        <span class="text-cyan-500 font-mono text-xs">[→]</span>
+        Dicas de Segurança
+        <span class="text-xs font-mono text-cyan-400">({{ diagnostico.recomendacoes|length }})</span>
+      </span>
+      <span class="accordion-chevron text-gray-500 transition-transform duration-200">&#8964;</span>
+    </button>
+    <div class="accordion-body overflow-hidden max-h-0 transition-all duration-300 ease-in-out">
+      <div class="px-1 pt-2 pb-1 space-y-2">
+        {% if diagnostico.recomendacoes %}
+          {% for rec in diagnostico.recomendacoes %}
+          <div class="flex gap-3 bg-gray-900 border border-cyan-900/20 rounded-xl px-4 py-4">
+            <span class="text-cyan-500 font-mono text-xs mt-0.5 shrink-0">[→]</span>
+            <p class="text-sm text-gray-300 leading-relaxed">{{ rec }}</p>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-4 text-green-400 font-mono text-sm">
+            [ PERFIL SEGURO — SEM DICAS ADICIONAIS ]
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Dados Técnicos -->
+  <div class="accordion-item">
+    <button class="accordion-btn w-full flex justify-between items-center px-4 py-3
+                   bg-gray-900 border border-gray-700 rounded-xl text-sm font-medium
+                   text-gray-400 hover:bg-gray-800 transition"
+            onclick="toggleAccordion(this)">
+      <span class="flex items-center gap-2">
+        <span class="text-gray-600 font-mono text-xs">[~]</span>
+        Dados Técnicos — Motor de Inferência
+      </span>
+      <span class="accordion-chevron text-gray-600 transition-transform duration-200">&#8964;</span>
+    </button>
+    <div class="accordion-body overflow-hidden max-h-0 transition-all duration-300 ease-in-out">
+      <div class="px-1 pt-2 pb-1">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4 text-xs font-mono text-gray-500">
+          <div>
+            <p class="text-gray-400 mb-2">REGRAS DISPARADAS ({{ diagnostico.regras_disparadas|length }})</p>
+            <div class="flex flex-wrap gap-2">
+              {% for r in diagnostico.regras_disparadas %}
+              <span class="px-2 py-1 bg-gray-800 border border-gray-700 rounded text-gray-400">{{ r }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% if diagnostico.conclusoes_derivadas %}
+          <div>
+            <p class="text-gray-400 mb-2">CONCLUSÕES DERIVADAS</p>
+            <div class="flex flex-wrap gap-2">
+              {% for c in diagnostico.conclusoes_derivadas %}
+              <span class="px-2 py-1 bg-gray-800 border border-gray-700 rounded text-gray-500">{{ c }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          <div>
+            <p class="text-gray-400 mb-2">RESPOSTAS ({{ diagnostico.respostas|length }})</p>
+            <div class="space-y-1">
+              {% for pid, resp in diagnostico.respostas.items() %}
+              <div class="flex justify-between">
+                <span>{{ pid }}</span>
+                <span class="{% if resp %}text-green-600{% else %}text-red-600{% endif %}">
+                  {{ "sim" if resp else "não" }}
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
-{% else %}
-<div class="mb-8 bg-green-900/20 border border-green-800 rounded-xl px-4 py-4 text-sm text-green-400 text-center">
-  Nenhum hábito inseguro detectado. Excelente! Continue assim.
-</div>
-{% endif %}
 
 <!-- Ações -->
-<div class="flex flex-col sm:flex-row gap-3 items-center justify-center">
+<div class="flex flex-col sm:flex-row gap-3 items-center justify-center mt-8">
   <a href="{{ url_for('bp.index') }}"
      class="px-5 py-2.5 rounded-lg border border-gray-700 text-sm font-medium hover:bg-gray-800 transition">
     &#8635; Fazer Novamente
   </a>
-
   <button
     onclick="navigator.clipboard.writeText(window.location.href).then(() => this.textContent = '&#10003; Link copiado!').catch(() => {})"
-    class="px-5 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-sm font-medium hover:bg-gray-700 transition"
-  >
-    &#128279; Copiar Link do Resultado
+    class="px-5 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-sm font-medium hover:bg-gray-700 transition">
+    &#128279; Copiar Link
   </button>
-
   <a href="{{ url_for('bp.historico') }}"
      class="px-5 py-2.5 rounded-lg border border-gray-700 text-sm font-medium hover:bg-gray-800 transition text-gray-400">
     Ver Histórico
   </a>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Accordion ───────────────────────────────────────────── */
+function toggleAccordion(btn) {
+  const body    = btn.nextElementSibling;
+  const chevron = btn.querySelector('.accordion-chevron');
+  const isOpen  = body.style.maxHeight && body.style.maxHeight !== '0px';
+  body.style.maxHeight    = isOpen ? '0px' : body.scrollHeight + 'px';
+  chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.accordion-btn').forEach((btn, i) => {
+    if (i < 2) toggleAccordion(btn);
+  });
+});
+
+/* ── SVG Tree — top-down layout ─────────────────────────── */
+(function () {
+  const svg = document.getElementById('tree-svg');
+  if (!svg || typeof TREE_DATA === 'undefined') return;
+
+  /*
+   * Pirâmide perfeita — árvore binária pura, 5 níveis, 31 nós.
+   * Step horizontal base = 1100/16 = 68.75 → arredondado para 69.
+   *
+   * Nível 0 (y= 30):  1 nó  — 552
+   * Nível 1 (y= 95):  2 nós — 276, 828
+   * Nível 2 (y=160):  4 nós — 138, 414, 690, 966
+   * Nível 3 (y=225):  8 nós —  69, 207, 345, 483, 621, 759, 897, 1035
+   * Nível 4 (y=290): 16 nós —  34, 103, 172, 241, 310, 379, 448, 517,
+   *                             586, 655, 724, 793, 862, 931,1000,1069
+   */
+  const R = 10;
+  const POS = {
+    /* nível 0 */
+    reutiliza_senha:          [ 552,  30],
+    /* nível 1 */
+    senha_fraca:              [ 276,  95],
+    usa_gerenciador:          [ 828,  95],
+    /* nível 2 */
+    usa_2fa:                  [ 138, 160],
+    bloqueio_tela:            [ 414, 160],
+    usa_2fa_app:              [ 690, 160],
+    troca_senha_regularmente: [ 966, 160],
+    /* nível 3 */
+    atualiza_software:        [  69, 225],
+    tem_antivirus:            [ 207, 225],
+    baixa_apps_desconhecidos: [ 345, 225],
+    clica_links_suspeitos:    [ 483, 225],
+    verifica_permissoes:      [ 621, 225],
+    compartilha_dados:        [ 759, 225],
+    usa_wifi_publico:         [ 897, 225],
+    faz_backup:               [1035, 225],
+    /* nível 4 — folhas */
+    usa_vpn:                  [  34, 290],
+    criptografia_disco:       [ 103, 290],
+    monitoramento_conta:      [ 172, 290],
+    download_pirata:          [ 241, 290],
+    verifica_desenvolvedor:   [ 310, 290],
+    compartilha_dispositivo:  [ 379, 290],
+    usa_filtro_email:         [ 448, 290],
+    reconhece_phishing:       [ 517, 290],
+    dados_nuvem:              [ 586, 290],
+    revoga_acessos:           [ 655, 290],
+    verifica_certificado_ssl: [ 724, 290],
+    usa_pagamento_seguro:     [ 793, 290],
+    desconecta_wifi:          [ 862, 290],
+    usa_vpn_privacidade:      [ 931, 290],
+    testa_backup:             [1000, 290],
+    senhas_navegador:         [1069, 290],
+  };
+
+  const EDGES = [
+    /* nível 0 → 1 */
+    ['reutiliza_senha',          'senha_fraca'],
+    ['reutiliza_senha',          'usa_gerenciador'],
+    /* nível 1 → 2 */
+    ['senha_fraca',              'usa_2fa'],
+    ['senha_fraca',              'bloqueio_tela'],
+    ['usa_gerenciador',          'usa_2fa_app'],
+    ['usa_gerenciador',          'troca_senha_regularmente'],
+    /* nível 2 → 3 */
+    ['usa_2fa',                  'atualiza_software'],
+    ['usa_2fa',                  'tem_antivirus'],
+    ['bloqueio_tela',            'baixa_apps_desconhecidos'],
+    ['bloqueio_tela',            'clica_links_suspeitos'],
+    ['usa_2fa_app',              'verifica_permissoes'],
+    ['usa_2fa_app',              'compartilha_dados'],
+    ['troca_senha_regularmente', 'usa_wifi_publico'],
+    ['troca_senha_regularmente', 'faz_backup'],
+    /* nível 3 → 4 */
+    ['atualiza_software',        'usa_vpn'],
+    ['atualiza_software',        'criptografia_disco'],
+    ['tem_antivirus',            'monitoramento_conta'],
+    ['tem_antivirus',            'download_pirata'],
+    ['baixa_apps_desconhecidos', 'verifica_desenvolvedor'],
+    ['baixa_apps_desconhecidos', 'compartilha_dispositivo'],
+    ['clica_links_suspeitos',    'usa_filtro_email'],
+    ['clica_links_suspeitos',    'reconhece_phishing'],
+    ['verifica_permissoes',      'dados_nuvem'],
+    ['verifica_permissoes',      'revoga_acessos'],
+    ['compartilha_dados',        'verifica_certificado_ssl'],
+    ['compartilha_dados',        'usa_pagamento_seguro'],
+    ['usa_wifi_publico',         'desconecta_wifi'],
+    ['usa_wifi_publico',         'usa_vpn_privacidade'],
+    ['faz_backup',               'testa_backup'],
+    ['faz_backup',               'senhas_navegador'],
+  ];
+
+  const W = 1100;
+  const H = 320;
+  svg.setAttribute('width',  W);
+  svg.setAttribute('height', H);
+
+  const visitedSet = new Set(
+    (TREE_DATA.visited_edges || []).map(([f, t]) => `${f}|${t}`)
+  );
+
+  function ns(tag) {
+    return document.createElementNS('http://www.w3.org/2000/svg', tag);
+  }
+
+  /* ── defs: glow filter + arrow markers ── */
+  const defs = ns('defs');
+
+  const filter = ns('filter');
+  filter.setAttribute('id', 'glow');
+  filter.setAttribute('x', '-50%'); filter.setAttribute('y', '-50%');
+  filter.setAttribute('width', '200%'); filter.setAttribute('height', '200%');
+  const blur = ns('feGaussianBlur');
+  blur.setAttribute('stdDeviation', '3');
+  blur.setAttribute('result', 'coloredBlur');
+  const merge = ns('feMerge');
+  ['coloredBlur', 'SourceGraphic'].forEach(inp => {
+    const mn = ns('feMergeNode'); mn.setAttribute('in', inp); merge.appendChild(mn);
+  });
+  filter.appendChild(blur); filter.appendChild(merge);
+  defs.appendChild(filter);
+
+  svg.appendChild(defs);
+
+  /* ── draw edges first (behind nodes) ── */
+  EDGES.forEach(([from, to]) => {
+    if (!POS[from] || !POS[to]) return;
+    const [x1, y1] = POS[from];
+    const [x2, y2] = POS[to];
+    const visited  = visitedSet.has(`${from}|${to}`);
+    const toNode   = TREE_DATA.nodes[to];
+
+    const el = ns('line');
+    el.setAttribute('x1', x1); el.setAttribute('y1', y1);
+    el.setAttribute('x2', x2); el.setAttribute('y2', y2);
+
+    if (visited) {
+      el.setAttribute('stroke',         toNode?.seguro ? '#22c55e' : '#ef4444');
+      el.setAttribute('stroke-width',   '1.5');
+      el.setAttribute('stroke-opacity', '0.85');
+    } else {
+      el.setAttribute('stroke',         '#374151');
+      el.setAttribute('stroke-width',   '1');
+      el.setAttribute('stroke-opacity', '0.3');
+    }
+    svg.appendChild(el);
+  });
+
+  /* ── draw nodes on top ── */
+  let selected = null;
+
+  Object.keys(POS).forEach(id => {
+    const node = TREE_DATA.nodes[id];
+    if (!node) return;
+    const [cx, cy] = POS[id];
+
+    const g = ns('g');
+    g.setAttribute('cursor', 'pointer');
+    g.setAttribute('data-id', id);
+
+    const circle = ns('circle');
+    circle.setAttribute('cx', cx);
+    circle.setAttribute('cy', cy);
+    circle.setAttribute('r',  R);
+
+    if (node.visitado) {
+      circle.setAttribute('fill',         node.seguro ? '#14532d' : '#450a0a');
+      circle.setAttribute('stroke',       node.seguro ? '#22c55e' : '#ef4444');
+      circle.setAttribute('stroke-width', '2.5');
+    } else {
+      circle.setAttribute('fill',         '#0d1117');
+      circle.setAttribute('stroke',       '#374151');
+      circle.setAttribute('stroke-width', '1');
+      circle.setAttribute('opacity',      '0.4');
+    }
+    g.appendChild(circle);
+
+    if (node.visitado) {
+      const dot = ns('circle');
+      dot.setAttribute('cx', cx);
+      dot.setAttribute('cy', cy);
+      dot.setAttribute('r',  '4');
+      dot.setAttribute('fill', node.seguro ? '#4ade80' : '#f87171');
+      dot.setAttribute('pointer-events', 'none');
+      g.appendChild(dot);
+    }
+
+    g.addEventListener('click', () => {
+      if (selected) {
+        const prevNode = TREE_DATA.nodes[selected.parentElement?.dataset?.id];
+        selected.setAttribute('stroke-width', prevNode?.visitado ? '2.5' : '1');
+        selected.setAttribute('filter', '');
+      }
+      circle.setAttribute('stroke-width', '4');
+      circle.setAttribute('filter', 'url(#glow)');
+      selected = circle;
+
+      const info = document.getElementById('node-info');
+      const resp = node.resposta === true  ? 'SIM'
+                 : node.resposta === false ? 'NÃO' : null;
+      const clr = node.seguro ? 'text-green-400' : 'text-red-400';
+      const brd = node.seguro ? 'border-green-900/40' : 'border-red-900/40';
+
+      info.innerHTML = `
+        <p class="text-xs font-mono text-gray-600 mb-2">// ${node.grupo.toUpperCase()}</p>
+        <p class="text-sm text-gray-200 leading-snug mb-3">${node.texto}</p>
+        ${node.visitado ? `
+          <div class="border-t ${brd} pt-3 mt-3 flex items-center gap-2">
+            <span class="font-mono text-sm font-bold ${clr}">&rarr; ${resp}</span>
+            <span class="text-xs ${clr}">(${node.seguro ? 'SEGURO' : 'INSEGURO'})</span>
+          </div>` : `
+          <p class="text-xs text-gray-700 font-mono border-t border-gray-800 pt-3 mt-3">
+            [ não visitado neste percurso ]
+          </p>`}
+      `;
+    });
+
+    svg.appendChild(g);
+  });
+
+})();
+</script>
 {% endblock %}

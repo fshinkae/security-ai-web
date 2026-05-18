@@ -1,100 +1,141 @@
 (() => {
-  const cards = Array.from(document.querySelectorAll(".quiz-card"));
-  if (!cards.length) return;
+  const container = document.getElementById("quiz-container");
+  if (!container) return;
 
-  const total = cards.length;
-  let atual = 0;
+  const questaoInicial = container.dataset.questaoInicial;
+  const allCards = Array.from(container.querySelectorAll(".quiz-card"));
+  if (!allCards.length) return;
 
-  const btnAnterior = document.getElementById("btn-anterior");
-  const btnProxima  = document.getElementById("btn-proxima");
-  const btnEnviar   = document.getElementById("btn-enviar");
-  const barra       = document.getElementById("progresso-barra");
-  const label       = document.getElementById("progresso-label");
-  const pct         = document.getElementById("progresso-pct");
-  const form        = document.getElementById("quiz-form");
+  // Mapa de id → card element
+  const cardMap = {};
+  allCards.forEach(c => { cardMap[c.dataset.id] = c; });
 
-  function atualizarProgresso(respondidas) {
-    const perc = Math.round((respondidas / total) * 100);
-    barra.style.width = perc + "%";
-    pct.textContent   = perc + "%";
-    label.textContent = `Pergunta ${atual + 1} de ${total}`;
+  const btnAnterior      = document.getElementById("btn-anterior");
+  const btnProxima       = document.getElementById("btn-proxima");
+  const btnEnviar        = document.getElementById("btn-enviar");
+  const barraProgresso   = document.getElementById("progresso-barra");
+  const labelProgresso   = document.getElementById("progresso-label");
+  const labelGrupo       = document.getElementById("progresso-grupo");
+  const inputRespondidas = document.getElementById("perguntas-respondidas");
+
+  let idAtual   = questaoInicial;
+  let historico = [];           // IDs na ordem em que foram exibidos
+
+  // Caminho fixo de 5 perguntas na árvore de 5 níveis
+  const MIN_PATH = 5;
+  const MAX_PATH = 5;
+
+  function respostaSelecionada(id) {
+    const radios = document.querySelectorAll(`input[name="pergunta_${id}"]:checked`);
+    return radios.length ? radios[0].value : null;
   }
 
-  function contarRespondidas() {
-    return cards.filter((_, i) => {
-      const name = cards[i].querySelector("input[type=radio]").name;
-      return !!document.querySelector(`input[name="${name}"]:checked`);
-    }).length;
+  function atualizarProgresso() {
+    const visitados = historico.length + 1;
+    const estimado  = Math.max(visitados, MIN_PATH);
+    const pct       = Math.min(Math.round(((visitados - 1) / estimado) * 100), 95);
+
+    barraProgresso.style.width = pct + "%";
+    labelProgresso.textContent = `Pergunta ${visitados}`;
+
+    const card = cardMap[idAtual];
+    if (card) labelGrupo.textContent = card.dataset.grupo || "";
   }
 
-  function mostrar(index) {
-    cards.forEach((c, i) => c.classList.toggle("hidden", i !== index));
-    btnAnterior.disabled = index === 0;
+  function mostrar(id) {
+    allCards.forEach(c => c.classList.add("hidden"));
+    const card = cardMap[id];
+    if (card) card.classList.remove("hidden");
 
-    const isUltima = index === total - 1;
+    idAtual = id;
+
+    const isUltima = !card || (!card.dataset.proximaSim && !card.dataset.proximaNao);
     btnProxima.classList.toggle("hidden", isUltima);
     btnEnviar.classList.toggle("hidden", !isUltima);
+    btnAnterior.disabled = historico.length === 0;
 
-    atualizarProgresso(contarRespondidas());
+    atualizarProgresso();
+  }
+
+  function avancar() {
+    const resposta = respostaSelecionada(idAtual);
+    if (!resposta) {
+      const cardAtual = cardMap[idAtual];
+      if (cardAtual) {
+        cardAtual.querySelector(".bg-gray-900").classList.add("shake");
+        setTimeout(() => cardAtual.querySelector(".bg-gray-900").classList.remove("shake"), 400);
+      }
+      return;
+    }
+
+    const card      = cardMap[idAtual];
+    const proximaId = resposta === "sim" ? card.dataset.proximaSim : card.dataset.proximaNao;
+
+    historico.push(idAtual);
+    inputRespondidas.value = historico.join(",");
+
+    if (proximaId) {
+      mostrar(proximaId);
+    } else {
+      // Último nó — inclui o atual na lista e submete
+      inputRespondidas.value = historico.join(",");
+      document.getElementById("quiz-form").submit();
+    }
+  }
+
+  function voltar() {
+    if (historico.length === 0) return;
+    const anterior = historico.pop();
+    inputRespondidas.value = historico.join(",");
+    mostrar(anterior);
   }
 
   // Estilo visual ao selecionar opção
-  document.querySelectorAll(".opcao-label").forEach(label => {
-    label.addEventListener("click", () => {
-      const name = label.querySelector(".opcao-radio").name;
-      document.querySelectorAll(`input[name="${name}"]`).forEach(radio => {
-        const btn = radio.closest(".opcao-label").querySelector(".opcao-btn");
-        btn.classList.remove("border-green-500", "bg-green-900/20", "border-red-500", "bg-red-900/20");
-        btn.classList.add("border-gray-700", "bg-gray-800");
-      });
+  container.addEventListener("click", e => {
+    const label = e.target.closest(".opcao-label");
+    if (!label) return;
 
-      const radio = label.querySelector(".opcao-radio");
-      const btn   = label.querySelector(".opcao-btn");
-      if (radio.value === "sim") {
-        btn.classList.replace("border-gray-700", "border-green-500");
-        btn.classList.replace("bg-gray-800",    "bg-green-900/20");
-      } else {
-        btn.classList.replace("border-gray-700", "border-red-500");
-        btn.classList.replace("bg-gray-800",    "bg-red-900/20");
-      }
+    const radio = label.querySelector(".opcao-radio");
+    const name  = radio.name;
 
-      atualizarProgresso(contarRespondidas());
+    document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+      const btn = r.closest(".opcao-label").querySelector(".opcao-btn");
+      btn.classList.remove("border-green-500", "bg-green-900/20", "border-red-500", "bg-red-900/20");
+      btn.classList.add("border-gray-700", "bg-gray-800");
     });
+
+    const btn = label.querySelector(".opcao-btn");
+    if (radio.value === "sim") {
+      btn.classList.replace("border-gray-700", "border-green-500");
+      btn.classList.replace("bg-gray-800",    "bg-green-900/20");
+    } else {
+      btn.classList.replace("border-gray-700", "border-red-500");
+      btn.classList.replace("bg-gray-800",    "bg-red-900/20");
+    }
   });
 
-  btnProxima.addEventListener("click", () => {
-    const name = cards[atual].querySelector("input[type=radio]").name;
-    if (!document.querySelector(`input[name="${name}"]:checked`)) {
-      cards[atual].querySelector(".opcao-btn").parentElement
-        .parentElement.classList.add("shake");
-      setTimeout(() =>
-        cards[atual].querySelectorAll(".opcao-btn").forEach(b =>
-          b.closest(".opcao-label").classList.remove("shake")
-        ), 400);
+  btnProxima.addEventListener("click", avancar);
+  btnAnterior.addEventListener("click", voltar);
+
+  // Validação final: garante que o card atual também está na lista ao submeter
+  document.getElementById("quiz-form").addEventListener("submit", e => {
+    const resposta = respostaSelecionada(idAtual);
+    if (!resposta) {
+      e.preventDefault();
+      const cardAtual = cardMap[idAtual];
+      if (cardAtual) {
+        cardAtual.querySelector(".bg-gray-900").classList.add("shake");
+        setTimeout(() => cardAtual.querySelector(".bg-gray-900").classList.remove("shake"), 400);
+      }
       return;
     }
-    if (atual < total - 1) mostrar(++atual);
-  });
-
-  btnAnterior.addEventListener("click", () => {
-    if (atual > 0) mostrar(--atual);
-  });
-
-  // Validação final antes do submit
-  form.addEventListener("submit", e => {
-    const naoRespondidas = cards.filter((_, i) => {
-      const name = cards[i].querySelector("input[type=radio]").name;
-      return !document.querySelector(`input[name="${name}"]:checked`);
-    });
-
-    if (naoRespondidas.length) {
-      e.preventDefault();
-      // Navega para a primeira pergunta sem resposta
-      const index = cards.indexOf(naoRespondidas[0]);
-      mostrar(index);
-      atual = index;
+    // Inclui pergunta atual se ainda não estiver na lista
+    const ids = inputRespondidas.value ? inputRespondidas.value.split(",") : [];
+    if (!ids.includes(idAtual)) {
+      ids.push(idAtual);
+      inputRespondidas.value = ids.join(",");
     }
   });
 
-  mostrar(0);
+  mostrar(questaoInicial);
 })();
