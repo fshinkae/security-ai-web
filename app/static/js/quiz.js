@@ -1,100 +1,242 @@
+/* AEMS — Swipe Quiz Engine */
 (() => {
-  const cards = Array.from(document.querySelectorAll(".quiz-card"));
-  if (!cards.length) return;
+  'use strict';
 
-  const total = cards.length;
-  let atual = 0;
+  const container = document.getElementById('quiz-container');
+  if (!container) return;
 
-  const btnAnterior = document.getElementById("btn-anterior");
-  const btnProxima  = document.getElementById("btn-proxima");
-  const btnEnviar   = document.getElementById("btn-enviar");
-  const barra       = document.getElementById("progresso-barra");
-  const label       = document.getElementById("progresso-label");
-  const pct         = document.getElementById("progresso-pct");
-  const form        = document.getElementById("quiz-form");
+  const questaoInicial = container.dataset.questaoInicial;
+  const allCards = Array.from(container.querySelectorAll('.quiz-card'));
+  if (!allCards.length) return;
 
-  function atualizarProgresso(respondidas) {
-    const perc = Math.round((respondidas / total) * 100);
-    barra.style.width = perc + "%";
-    pct.textContent   = perc + "%";
-    label.textContent = `Pergunta ${atual + 1} de ${total}`;
+  /* ── Card map ─────────────────────────────────────────────── */
+  const cardMap = {};
+  allCards.forEach(c => { cardMap[c.dataset.id] = c; });
+
+  /* ── UI refs ─────────────────────────────────────────────── */
+  const btnAnterior      = document.getElementById('btn-anterior');
+  const btnNao           = document.getElementById('btn-nao');
+  const btnSim           = document.getElementById('btn-sim');
+  const inputRespondidas = document.getElementById('perguntas-respondidas');
+  const barraProgresso   = document.getElementById('progresso-barra');
+  const labelGrupo       = document.getElementById('progresso-grupo');
+  const stepCounter      = document.getElementById('step-counter');
+
+  const TOTAL     = 5;
+  const THRESHOLD = 80; // px until commit
+
+  let idAtual   = questaoInicial;
+  let historico = [];
+  let locked    = false; // block during animations
+
+  /* ── Drag state ──────────────────────────────────────────── */
+  let drag = null;
+
+  /* ── Helpers ─────────────────────────────────────────────── */
+
+  function card(id) { return cardMap[id]; }
+
+  function setRadio(id, val) {
+    const r = document.querySelector(`input[name="pergunta_${id}"][value="${val}"]`);
+    if (r) r.checked = true;
   }
 
-  function contarRespondidas() {
-    return cards.filter((_, i) => {
-      const name = cards[i].querySelector("input[type=radio]").name;
-      return !!document.querySelector(`input[name="${name}"]:checked`);
-    }).length;
+  function clearRadio(id) {
+    document.querySelectorAll(`input[name="pergunta_${id}"]`)
+            .forEach(r => r.checked = false);
   }
 
-  function mostrar(index) {
-    cards.forEach((c, i) => c.classList.toggle("hidden", i !== index));
-    btnAnterior.disabled = index === 0;
-
-    const isUltima = index === total - 1;
-    btnProxima.classList.toggle("hidden", isUltima);
-    btnEnviar.classList.toggle("hidden", !isUltima);
-
-    atualizarProgresso(contarRespondidas());
+  function resetCard(c) {
+    c.style.cssText = '';
+    c.querySelectorAll('.swipe-indicator').forEach(o => o.style.opacity = '0');
   }
 
-  // Estilo visual ao selecionar opção
-  document.querySelectorAll(".opcao-label").forEach(label => {
-    label.addEventListener("click", () => {
-      const name = label.querySelector(".opcao-radio").name;
-      document.querySelectorAll(`input[name="${name}"]`).forEach(radio => {
-        const btn = radio.closest(".opcao-label").querySelector(".opcao-btn");
-        btn.classList.remove("border-green-500", "bg-green-900/20", "border-red-500", "bg-red-900/20");
-        btn.classList.add("border-gray-700", "bg-gray-800");
-      });
+  function updateUI() {
+    const done = historico.length;
+    const pct  = Math.round((done / TOTAL) * 100);
+    if (barraProgresso) barraProgresso.style.width = Math.min(pct, 95) + '%';
+    if (stepCounter)    stepCounter.textContent = `${done + 1} / ${TOTAL}`;
+    const c = card(idAtual);
+    if (c && labelGrupo)
+      labelGrupo.textContent = `// ${(c.dataset.grupo || '').toUpperCase()}`;
+    if (btnAnterior) btnAnterior.disabled = historico.length === 0;
+  }
 
-      const radio = label.querySelector(".opcao-radio");
-      const btn   = label.querySelector(".opcao-btn");
-      if (radio.value === "sim") {
-        btn.classList.replace("border-gray-700", "border-green-500");
-        btn.classList.replace("bg-gray-800",    "bg-green-900/20");
-      } else {
-        btn.classList.replace("border-gray-700", "border-red-500");
-        btn.classList.replace("bg-gray-800",    "bg-red-900/20");
-      }
+  /* ── Show / hide ─────────────────────────────────────────── */
 
-      atualizarProgresso(contarRespondidas());
+  function show(id, anim) {
+    idAtual = id;
+    const c = card(id);
+    if (!c) return;
+
+    c.style.cssText = '';
+    c.querySelectorAll('.swipe-indicator').forEach(o => o.style.opacity = '0');
+    c.classList.add('is-active');
+
+    if (anim === 'enter') {
+      c.style.transform = 'translateY(36px) scale(0.95)';
+      c.style.opacity   = '0';
+      /* double rAF guarantees the browser paints the initial state first */
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        c.style.transition = 'transform 0.38s cubic-bezier(0.34,1.4,0.64,1), opacity 0.28s ease-out';
+        c.style.transform  = '';
+        c.style.opacity    = '';
+        setTimeout(() => { c.style.transition = ''; locked = false; }, 400);
+      }));
+    } else if (anim === 'back') {
+      c.style.transform = 'translateY(-22px) scale(0.97)';
+      c.style.opacity   = '0';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        c.style.transition = 'transform 0.3s ease-out, opacity 0.24s ease-out';
+        c.style.transform  = '';
+        c.style.opacity    = '';
+        setTimeout(() => { c.style.transition = ''; locked = false; }, 320);
+      }));
+    } else {
+      locked = false;
+    }
+
+    updateUI();
+  }
+
+  function hide(c) {
+    c.classList.remove('is-active');
+    resetCard(c);
+  }
+
+  /* ── Animations ──────────────────────────────────────────── */
+
+  function flyOut(c, dir) {
+    return new Promise(resolve => {
+      c.style.transition = 'transform 0.3s cubic-bezier(0.4,0,1,1), opacity 0.24s ease-in';
+      c.style.transform  = `translateX(${dir * 120}%) rotate(${dir * 20}deg)`;
+      c.style.opacity    = '0';
+      setTimeout(() => { hide(c); resolve(); }, 320);
     });
-  });
+  }
 
-  btnProxima.addEventListener("click", () => {
-    const name = cards[atual].querySelector("input[type=radio]").name;
-    if (!document.querySelector(`input[name="${name}"]:checked`)) {
-      cards[atual].querySelector(".opcao-btn").parentElement
-        .parentElement.classList.add("shake");
-      setTimeout(() =>
-        cards[atual].querySelectorAll(".opcao-btn").forEach(b =>
-          b.closest(".opcao-label").classList.remove("shake")
-        ), 400);
+  function snapBack(c) {
+    c.style.transition = 'transform 0.44s cubic-bezier(0.175,0.885,0.32,1.275), opacity 0.3s';
+    c.style.transform  = '';
+    c.style.opacity    = '';
+    c.querySelectorAll('.swipe-indicator').forEach(o => o.style.opacity = '0');
+    setTimeout(() => { c.style.transition = ''; }, 460);
+  }
+
+  /* ── Commit answer ───────────────────────────────────────── */
+
+  async function commit(isSim) {
+    if (locked) return;
+    locked = true;
+
+    const c = card(idAtual);
+    if (!c) return;
+
+    setRadio(idAtual, isSim ? 'sim' : 'nao');
+    await flyOut(c, isSim ? 1 : -1);
+
+    historico.push(idAtual);
+    inputRespondidas.value = historico.join(',');
+
+    const proximo = isSim ? c.dataset.proximaSim : c.dataset.proximaNao;
+
+    if (!proximo) {
+      /* Last question — include current in list and submit */
+      document.getElementById('quiz-form').submit();
       return;
     }
-    if (atual < total - 1) mostrar(++atual);
+
+    show(proximo, 'enter');
+  }
+
+  /* ── Go back ─────────────────────────────────────────────── */
+
+  async function goBack() {
+    if (locked || historico.length === 0) return;
+    locked = true;
+
+    const c = card(idAtual);
+    c.style.transition = 'transform 0.22s ease-in, opacity 0.18s ease-in';
+    c.style.transform  = 'translateY(26px) scale(0.95)';
+    c.style.opacity    = '0';
+    await new Promise(r => setTimeout(r, 240));
+    hide(c);
+
+    clearRadio(idAtual);
+    const prev = historico.pop();
+    inputRespondidas.value = historico.join(',');
+
+    show(prev, 'back');
+  }
+
+  /* ── Pointer (touch + mouse) drag ───────────────────────── */
+
+  container.addEventListener('pointerdown', e => {
+    if (locked) return;
+    const c = card(idAtual);
+    if (!c) return;
+    c.setPointerCapture(e.pointerId);
+    c.style.transition = 'none';
+    drag = { startX: e.clientX, startY: e.clientY, lastDx: 0, axis: null };
   });
 
-  btnAnterior.addEventListener("click", () => {
-    if (atual > 0) mostrar(--atual);
-  });
+  container.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
 
-  // Validação final antes do submit
-  form.addEventListener("submit", e => {
-    const naoRespondidas = cards.filter((_, i) => {
-      const name = cards[i].querySelector("input[type=radio]").name;
-      return !document.querySelector(`input[name="${name}"]:checked`);
-    });
+    /* Lock axis on first significant movement */
+    if (!drag.axis && (Math.abs(dx) > 8 || Math.abs(dy) > 8))
+      drag.axis = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
 
-    if (naoRespondidas.length) {
-      e.preventDefault();
-      // Navega para a primeira pergunta sem resposta
-      const index = cards.indexOf(naoRespondidas[0]);
-      mostrar(index);
-      atual = index;
+    if (drag.axis !== 'h') return;
+    e.preventDefault();
+
+    drag.lastDx = dx;
+    const c = card(idAtual);
+    c.style.transform = `translateX(${dx}px) rotate(${dx * 0.045}deg)`;
+
+    const intensity = Math.min(Math.abs(dx) / 100, 1);
+    const simEl = c.querySelector('.swipe-sim');
+    const naoEl = c.querySelector('.swipe-nao');
+
+    if (dx > 8) {
+      simEl.style.opacity = intensity;
+      naoEl.style.opacity = '0';
+    } else if (dx < -8) {
+      naoEl.style.opacity = intensity;
+      simEl.style.opacity = '0';
+    } else {
+      simEl.style.opacity = '0';
+      naoEl.style.opacity = '0';
     }
+  }, { passive: false });
+
+  container.addEventListener('pointerup', e => {
+    if (!drag) return;
+    const { lastDx, axis } = drag;
+    drag = null;
+
+    const c = card(idAtual);
+    if (axis !== 'h') return; /* vertical drag — browser handles scroll */
+
+    if      (lastDx >  THRESHOLD) commit(true);
+    else if (lastDx < -THRESHOLD) commit(false);
+    else                           snapBack(c);
   });
 
-  mostrar(0);
+  container.addEventListener('pointercancel', () => {
+    if (!drag) return;
+    drag = null;
+    const c = card(idAtual);
+    if (c) snapBack(c);
+  });
+
+  /* ── Tap buttons ─────────────────────────────────────────── */
+  if (btnSim)      btnSim.addEventListener('click',      () => commit(true));
+  if (btnNao)      btnNao.addEventListener('click',      () => commit(false));
+  if (btnAnterior) btnAnterior.addEventListener('click', goBack);
+
+  /* ── Boot ────────────────────────────────────────────────── */
+  show(questaoInicial);
 })();

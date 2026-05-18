@@ -1,106 +1,419 @@
 {% extends "base.html" %}
-
-{% block title %}AEMS — Resultado do Diagnóstico{% endblock %}
+{% block title %}AEMS — Resultado{% endblock %}
 
 {% block content %}
-
 {% set nivel = diagnostico.nivel_risco %}
-{% if nivel == "alto" %}
-  {% set cor_bg   = "bg-red-900/30" %}
-  {% set cor_borda= "border-red-700" %}
-  {% set cor_texto= "text-red-400" %}
-  {% set cor_barra= "bg-red-500" %}
-{% elif nivel == "medio" %}
-  {% set cor_bg   = "bg-yellow-900/30" %}
-  {% set cor_borda= "border-yellow-700" %}
-  {% set cor_texto= "text-yellow-400" %}
-  {% set cor_barra= "bg-yellow-400" %}
-{% else %}
-  {% set cor_bg   = "bg-green-900/30" %}
-  {% set cor_borda= "border-green-700" %}
-  {% set cor_texto= "text-green-400" %}
-  {% set cor_barra= "bg-green-500" %}
-{% endif %}
 
-<div class="text-center mb-10">
+<!-- Eyebrow -->
+<div class="mb-5 fade-up">
+  <p class="cyber-eyebrow mb-1">// RESULTADO DO DIAGNÓSTICO</p>
   {% if diagnostico.nome %}
-    <p class="text-gray-400 text-sm mb-1">Diagnóstico de <span class="text-white font-medium">{{ diagnostico.nome }}</span></p>
+  <p class="text-sm" style="color:var(--c-muted)">
+    Diagnóstico de <span class="text-white font-medium">{{ diagnostico.nome }}</span>
+  </p>
   {% endif %}
-  <h1 class="text-3xl font-bold">Resultado do Diagnóstico</h1>
 </div>
 
-<!-- Pontuação -->
-<div class="{{ cor_bg }} border {{ cor_borda }} rounded-xl p-6 mb-6 text-center">
-  <p class="text-sm text-gray-400 mb-1">Pontuação de Risco</p>
-  <p class="text-5xl font-extrabold {{ cor_texto }}">{{ diagnostico.pontuacao }}<span class="text-2xl text-gray-500">/128</span></p>
+<!-- ── Score Card ──────────────────────────────────────────── -->
+<div class="score-card {{ nivel }} mb-6 fade-up {% if nivel == 'alto' %}pulse-red{% elif nivel == 'baixo' %}pulse-cyan{% endif %}"
+     style="animation-delay:.1s">
 
-  <div class="w-full bg-gray-800 rounded-full h-3 mt-4">
-    <div class="{{ cor_barra }} h-3 rounded-full transition-all"
-         style="width: {{ (diagnostico.pontuacao / 128 * 100)|round|int }}%"></div>
+  <p class="cyber-eyebrow mb-3">// PONTUAÇÃO DE RISCO</p>
+
+  <p class="score-number
+    {% if nivel == 'alto' %}text-red-400
+    {% elif nivel == 'medio' %}text-yellow-300
+    {% else %}text-green-400{% endif %}">
+    {{ diagnostico.pontuacao }}
+    <span class="text-base font-normal" style="color:var(--c-muted)">pts</span>
+  </p>
+
+  <div class="score-bar-track">
+    <div class="score-bar-fill {{ nivel }}"
+         style="width: {{ [diagnostico.pontuacao * 100 // 90, 100]|min }}%"></div>
+  </div>
+
+  <div class="flex justify-center mt-1">
+    <span class="risk-badge {{ nivel }}">
+      {% if nivel == 'alto' %}⚠{% elif nivel == 'medio' %}◎{% else %}✓{% endif %}
+      {% if nivel == 'alto' %}ALTO RISCO
+      {% elif nivel == 'medio' %}RISCO MÉDIO
+      {% else %}BAIXO RISCO{% endif %}
+    </span>
   </div>
 </div>
 
-<!-- Nível de risco -->
-<div class="flex justify-center mb-8">
-  <span class="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold
-               {{ cor_bg }} {{ cor_texto }} border {{ cor_borda }}">
-    {% if nivel == "alto" %}&#9888;{% elif nivel == "medio" %}&#9711;{% else %}&#10003;{% endif %}
-    {{ diagnostico.label_risco }}
-  </span>
+<!-- ── Árvore de decisão ───────────────────────────────────── -->
+{% if tree_data %}
+<div class="mb-6 fade-up" style="animation-delay:.18s">
+  <p class="cyber-eyebrow mb-3">// ÁRVORE BINÁRIA DE DECISÃO</p>
+
+  <div class="w-full rounded-xl border" style="border-color:rgba(0,255,255,0.07);background:var(--c-surface);padding:14px 10px 10px">
+    <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto"></svg>
+  </div>
+
+  <div class="flex gap-3 mt-3">
+    <div id="node-info"
+         class="flex-1 rounded-xl p-4 text-xs min-h-16"
+         style="background:rgba(13,17,23,0.7); border:1px solid rgba(0,255,255,0.07)">
+      <p class="font-mono text-center" style="color:rgba(255,255,255,0.15)">
+        ↑ toque em um nó para ver detalhes
+      </p>
+    </div>
+    <div class="shrink-0 rounded-xl px-3 py-3 self-start text-xs font-mono space-y-2"
+         style="background:rgba(13,17,23,0.7); border:1px solid rgba(0,255,255,0.07); color:rgba(255,255,255,0.4)">
+      <div class="flex items-center gap-2">
+        <svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#450a0a" stroke="#ef4444" stroke-width="1.5"/></svg>
+        Inseguro
+      </div>
+      <div class="flex items-center gap-2">
+        <svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#14532d" stroke="#22c55e" stroke-width="1.5"/></svg>
+        Seguro
+      </div>
+      <div class="flex items-center gap-2">
+        <svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#0d1117" stroke="#374151" stroke-width="1" opacity="0.5"/></svg>
+        Não visitado
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- Recomendações -->
-{% if diagnostico.recomendacoes %}
-<div class="mb-6">
-  <h2 class="text-base font-semibold text-gray-300 mb-3">Recomendações</h2>
-  <ul class="space-y-2">
-    {% for rec in diagnostico.recomendacoes %}
-    <li class="flex gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-300">
-      <span class="text-blue-400 mt-0.5">&#8226;</span>
-      <span>{{ rec }}</span>
-    </li>
-    {% endfor %}
-  </ul>
-</div>
+<script>const TREE_DATA = {{ tree_data | tojson }};</script>
 {% endif %}
 
-<!-- Falhas detectadas -->
-{% if diagnostico.falhas_detectadas %}
-<div class="mb-8">
-  <h2 class="text-base font-semibold text-gray-300 mb-3">Hábitos Inseguros Detectados</h2>
-  <ul class="space-y-2">
-    {% for falha in diagnostico.falhas_detectadas %}
-    <li class="flex gap-3 bg-gray-900 border border-red-900/50 rounded-lg px-4 py-3 text-sm text-gray-400">
-      <span class="text-red-500 mt-0.5">&#10005;</span>
-      <span>{{ perguntas_map.get(falha, falha) }}</span>
-    </li>
-    {% endfor %}
-  </ul>
-</div>
-{% else %}
-<div class="mb-8 bg-green-900/20 border border-green-800 rounded-xl px-4 py-4 text-sm text-green-400 text-center">
-  Nenhum hábito inseguro detectado. Excelente! Continue assim.
-</div>
-{% endif %}
+<!-- ── Accordions ─────────────────────────────────────────── -->
+<div class="space-y-0 mb-6 fade-up" id="accordion" style="animation-delay:.24s">
 
-<!-- Ações -->
-<div class="flex flex-col sm:flex-row gap-3 items-center justify-center">
-  <a href="{{ url_for('bp.index') }}"
-     class="px-5 py-2.5 rounded-lg border border-gray-700 text-sm font-medium hover:bg-gray-800 transition">
-    &#8635; Fazer Novamente
+  <!-- Hábitos inseguros -->
+  <div class="accordion-item">
+    <button class="accordion-btn" onclick="toggleAcc(this)">
+      <span class="flex items-center gap-2 min-w-0">
+        <span class="font-mono text-xs shrink-0" style="color:var(--c-red)">[✗]</span>
+        <span class="truncate">Hábitos Inseguros Detectados</span>
+        <span class="font-mono text-xs shrink-0" style="color:var(--c-red)">
+          ({{ diagnostico.falhas_detectadas|length }})
+        </span>
+      </span>
+      <span class="accordion-chevron">⌄</span>
+    </button>
+    <div class="accordion-body">
+      <div class="p-3 space-y-2">
+        {% if diagnostico.falhas_detectadas %}
+          {% for falha in diagnostico.falhas_detectadas %}
+          <div class="result-row">
+            <span class="font-mono text-xs shrink-0 mt-0.5" style="color:var(--c-red)">✗</span>
+            <span>{{ perguntas_map.get(falha, falha) }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-center py-3 font-mono text-xs" style="color:#22C55E">
+            [ NENHUM HÁBITO INSEGURO DETECTADO ]
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Dicas de segurança -->
+  <div class="accordion-item mt-2">
+    <button class="accordion-btn" onclick="toggleAcc(this)">
+      <span class="flex items-center gap-2 min-w-0">
+        <span class="font-mono text-xs shrink-0" style="color:var(--c-cyan)">[→]</span>
+        <span class="truncate">Dicas de Segurança</span>
+        <span class="font-mono text-xs shrink-0" style="color:var(--c-cyan)">
+          ({{ diagnostico.recomendacoes|length }})
+        </span>
+      </span>
+      <span class="accordion-chevron">⌄</span>
+    </button>
+    <div class="accordion-body">
+      <div class="p-3 space-y-2">
+        {% if diagnostico.recomendacoes %}
+          {% for rec in diagnostico.recomendacoes %}
+          <div class="result-row">
+            <span class="font-mono text-xs shrink-0 mt-0.5" style="color:var(--c-cyan)">[→]</span>
+            <p class="text-sm leading-relaxed" style="color:rgba(255,255,255,0.75)">{{ rec }}</p>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-center py-3 font-mono text-xs" style="color:#22C55E">
+            [ PERFIL SEGURO — SEM DICAS ADICIONAIS ]
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Dados técnicos -->
+  <div class="accordion-item mt-2">
+    <button class="accordion-btn" onclick="toggleAcc(this)">
+      <span class="flex items-center gap-2">
+        <span class="font-mono text-xs" style="color:rgba(255,255,255,0.2)">[~]</span>
+        <span style="color:rgba(255,255,255,0.4)">Dados Técnicos — Motor de Inferência</span>
+      </span>
+      <span class="accordion-chevron">⌄</span>
+    </button>
+    <div class="accordion-body">
+      <div class="p-3">
+        <div class="rounded-xl p-4 space-y-4 text-xs font-mono"
+             style="background:var(--c-surface); color:rgba(255,255,255,0.4)">
+          <div>
+            <p class="mb-2" style="color:rgba(255,255,255,0.6)">
+              REGRAS DISPARADAS ({{ diagnostico.regras_disparadas|length }})
+            </p>
+            <div class="flex flex-wrap gap-1.5">
+              {% for r in diagnostico.regras_disparadas %}
+              <span class="px-2 py-1 rounded text-xs"
+                    style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); color:rgba(255,255,255,0.5)">
+                {{ r }}
+              </span>
+              {% endfor %}
+            </div>
+          </div>
+          {% if diagnostico.conclusoes_derivadas %}
+          <div>
+            <p class="mb-2" style="color:rgba(255,255,255,0.6)">CONCLUSÕES DERIVADAS</p>
+            <div class="flex flex-wrap gap-1.5">
+              {% for c in diagnostico.conclusoes_derivadas %}
+              <span class="px-2 py-1 rounded text-xs"
+                    style="background:rgba(0,255,255,0.04); border:1px solid rgba(0,255,255,0.08); color:rgba(0,255,255,0.5)">
+                {{ c }}
+              </span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          <div>
+            <p class="mb-2" style="color:rgba(255,255,255,0.6)">
+              RESPOSTAS ({{ diagnostico.respostas|length }})
+            </p>
+            <div class="space-y-1">
+              {% for pid, resp in diagnostico.respostas.items() %}
+              <div class="flex justify-between items-center gap-2">
+                <span class="truncate">{{ pid }}</span>
+                <span class="shrink-0 {% if resp %}text-green-600{% else %}text-red-600{% endif %}">
+                  {{ "sim" if resp else "não" }}
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Ações ───────────────────────────────────────────────── -->
+<div class="flex gap-3 fade-up" style="animation-delay:.3s">
+  <a href="{{ url_for('bp.index') }}" class="cyber-action-btn primary">
+    ↺ Refazer
   </a>
-
   <button
-    onclick="navigator.clipboard.writeText(window.location.href).then(() => this.textContent = '&#10003; Link copiado!').catch(() => {})"
-    class="px-5 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-sm font-medium hover:bg-gray-700 transition"
-  >
-    &#128279; Copiar Link do Resultado
+    onclick="navigator.clipboard.writeText(window.location.href).then(()=>this.textContent='✓ Copiado!').catch(()=>{})"
+    class="cyber-action-btn">
+    🔗 Copiar link
   </button>
-
-  <a href="{{ url_for('bp.historico') }}"
-     class="px-5 py-2.5 rounded-lg border border-gray-700 text-sm font-medium hover:bg-gray-800 transition text-gray-400">
-    Ver Histórico
+  <a href="{{ url_for('bp.historico') }}" class="cyber-action-btn">
+    Histórico
   </a>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Accordion ───────────────────────────────────────────── */
+function toggleAcc(btn) {
+  const body    = btn.nextElementSibling;
+  const chevron = btn.querySelector('.accordion-chevron');
+  const open    = body.style.maxHeight && body.style.maxHeight !== '0px';
+  body.style.maxHeight    = open ? '0px' : body.scrollHeight + 'px';
+  chevron.style.transform = open ? '' : 'rotate(180deg)';
+  btn.classList.toggle('open', !open);
+}
+
+
+/* ── SVG Tree ─────────────────────────────────────────────── */
+(function () {
+  const svg = document.getElementById('tree-svg');
+  if (!svg || typeof TREE_DATA === 'undefined') return;
+
+  /*
+   * Layout mobile-first — viewBox 370×228, step horizontal=23px.
+   *
+   * Nível 0 (y= 20):  1 nó  — 185
+   * Nível 1 (y= 68):  2 nós —  93, 277
+   * Nível 2 (y=116):  4 nós —  47, 139, 231, 323
+   * Nível 3 (y=164):  8 nós —  24,  70, 116, 162, 208, 254, 300, 346
+   * Nível 4 (y=212): 16 nós —  12,  35,  58,  81, 104, 127, 150, 173,
+   *                            196, 219, 242, 265, 288, 311, 334, 357
+   *
+   * Cada pai está exatamente no centro dos dois filhos → pirâmide simétrica.
+   */
+  const R = 8;
+  const POS = {
+    reutiliza_senha:          [185,  20],
+    senha_fraca:              [ 93,  68],
+    usa_gerenciador:          [277,  68],
+    usa_2fa:                  [ 47, 116],
+    bloqueio_tela:            [139, 116],
+    usa_2fa_app:              [231, 116],
+    troca_senha_regularmente: [323, 116],
+    atualiza_software:        [ 24, 164],
+    tem_antivirus:            [ 70, 164],
+    baixa_apps_desconhecidos: [116, 164],
+    clica_links_suspeitos:    [162, 164],
+    verifica_permissoes:      [208, 164],
+    compartilha_dados:        [254, 164],
+    usa_wifi_publico:         [300, 164],
+    faz_backup:               [346, 164],
+    usa_vpn:                  [ 12, 212],
+    criptografia_disco:       [ 35, 212],
+    monitoramento_conta:      [ 58, 212],
+    download_pirata:          [ 81, 212],
+    verifica_desenvolvedor:   [104, 212],
+    compartilha_dispositivo:  [127, 212],
+    usa_filtro_email:         [150, 212],
+    reconhece_phishing:       [173, 212],
+    dados_nuvem:              [196, 212],
+    revoga_acessos:           [219, 212],
+    verifica_certificado_ssl: [242, 212],
+    usa_pagamento_seguro:     [265, 212],
+    desconecta_wifi:          [288, 212],
+    usa_vpn_privacidade:      [311, 212],
+    testa_backup:             [334, 212],
+    senhas_navegador:         [357, 212],
+  };
+
+  const EDGES = [
+    ['reutiliza_senha','senha_fraca'],['reutiliza_senha','usa_gerenciador'],
+    ['senha_fraca','usa_2fa'],['senha_fraca','bloqueio_tela'],
+    ['usa_gerenciador','usa_2fa_app'],['usa_gerenciador','troca_senha_regularmente'],
+    ['usa_2fa','atualiza_software'],['usa_2fa','tem_antivirus'],
+    ['bloqueio_tela','baixa_apps_desconhecidos'],['bloqueio_tela','clica_links_suspeitos'],
+    ['usa_2fa_app','verifica_permissoes'],['usa_2fa_app','compartilha_dados'],
+    ['troca_senha_regularmente','usa_wifi_publico'],['troca_senha_regularmente','faz_backup'],
+    ['atualiza_software','usa_vpn'],['atualiza_software','criptografia_disco'],
+    ['tem_antivirus','monitoramento_conta'],['tem_antivirus','download_pirata'],
+    ['baixa_apps_desconhecidos','verifica_desenvolvedor'],['baixa_apps_desconhecidos','compartilha_dispositivo'],
+    ['clica_links_suspeitos','usa_filtro_email'],['clica_links_suspeitos','reconhece_phishing'],
+    ['verifica_permissoes','dados_nuvem'],['verifica_permissoes','revoga_acessos'],
+    ['compartilha_dados','verifica_certificado_ssl'],['compartilha_dados','usa_pagamento_seguro'],
+    ['usa_wifi_publico','desconecta_wifi'],['usa_wifi_publico','usa_vpn_privacidade'],
+    ['faz_backup','testa_backup'],['faz_backup','senhas_navegador'],
+  ];
+
+  const W = 370, H = 228;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const visited = new Set((TREE_DATA.visited_edges||[]).map(([f,t])=>`${f}|${t}`));
+
+  function ns(tag){ return document.createElementNS('http://www.w3.org/2000/svg', tag); }
+
+  /* defs: glow filter */
+  const defs   = ns('defs');
+  const filter = ns('filter');
+  filter.setAttribute('id','glow');
+  filter.setAttribute('x','-50%'); filter.setAttribute('y','-50%');
+  filter.setAttribute('width','200%'); filter.setAttribute('height','200%');
+  const blur = ns('feGaussianBlur');
+  blur.setAttribute('stdDeviation','3');
+  blur.setAttribute('result','cb');
+  const merge = ns('feMerge');
+  ['cb','SourceGraphic'].forEach(v=>{
+    const mn = ns('feMergeNode'); mn.setAttribute('in',v); merge.appendChild(mn);
+  });
+  filter.appendChild(blur); filter.appendChild(merge);
+  defs.appendChild(filter);
+  svg.appendChild(defs);
+
+  /* edges */
+  EDGES.forEach(([f,t])=>{
+    if (!POS[f]||!POS[t]) return;
+    const [x1,y1]=POS[f], [x2,y2]=POS[t];
+    const isVisited = visited.has(`${f}|${t}`);
+    const toNode = TREE_DATA.nodes[t];
+    const el = ns('line');
+    el.setAttribute('x1',x1); el.setAttribute('y1',y1);
+    el.setAttribute('x2',x2); el.setAttribute('y2',y2);
+    if (isVisited) {
+      el.setAttribute('stroke', toNode?.seguro ? '#22c55e' : '#ef4444');
+      el.setAttribute('stroke-width','1.5');
+      el.setAttribute('stroke-opacity','0.85');
+    } else {
+      el.setAttribute('stroke','#1e293b');
+      el.setAttribute('stroke-width','1');
+    }
+    svg.appendChild(el);
+  });
+
+  /* nodes */
+  let sel = null;
+  Object.keys(POS).forEach(id => {
+    const node = TREE_DATA.nodes[id];
+    if (!node) return;
+    const [cx,cy] = POS[id];
+    const g = ns('g');
+    g.setAttribute('cursor','pointer');
+    g.setAttribute('data-id',id);
+
+    const circle = ns('circle');
+    circle.setAttribute('cx',cx); circle.setAttribute('cy',cy); circle.setAttribute('r',R);
+    if (node.visitado) {
+      circle.setAttribute('fill',  node.seguro ? '#14532d' : '#450a0a');
+      circle.setAttribute('stroke',node.seguro ? '#22c55e' : '#ef4444');
+      circle.setAttribute('stroke-width','2.5');
+    } else {
+      circle.setAttribute('fill','#0d1117');
+      circle.setAttribute('stroke','#1e293b');
+      circle.setAttribute('stroke-width','1');
+      circle.setAttribute('opacity','0.5');
+    }
+    g.appendChild(circle);
+
+    if (node.visitado) {
+      const dot = ns('circle');
+      dot.setAttribute('cx',cx); dot.setAttribute('cy',cy); dot.setAttribute('r','4');
+      dot.setAttribute('fill', node.seguro ? '#4ade80' : '#f87171');
+      dot.setAttribute('pointer-events','none');
+      g.appendChild(dot);
+    }
+
+    g.addEventListener('click', () => {
+      if (sel) {
+        const pn = TREE_DATA.nodes[sel.parentElement?.dataset?.id];
+        sel.setAttribute('stroke-width', pn?.visitado ? '2.5' : '1');
+        sel.removeAttribute('filter');
+      }
+      circle.setAttribute('stroke-width','4');
+      circle.setAttribute('filter','url(#glow)');
+      sel = circle;
+
+      const info = document.getElementById('node-info');
+      const resp = node.resposta === true ? 'SIM' : node.resposta === false ? 'NÃO' : null;
+      const clr  = node.seguro ? '#22c55e' : '#ef4444';
+
+      info.innerHTML = `
+        <p style="font-family:var(--font-mono);font-size:9px;letter-spacing:3px;color:rgba(0,255,255,0.4);margin-bottom:6px">
+          // ${node.grupo.toUpperCase()}
+        </p>
+        <p style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5;margin-bottom:8px">
+          ${node.texto}
+        </p>
+        ${node.visitado ? `
+          <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:8px;display:flex;align-items:center;gap:8px">
+            <span style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:${clr}">→ ${resp}</span>
+            <span style="font-family:var(--font-mono);font-size:10px;color:${clr}">(${node.seguro?'SEGURO':'INSEGURO'})</span>
+          </div>` : `
+          <p style="font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,0.2);border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">
+            [ não visitado neste percurso ]
+          </p>`}`;
+    });
+
+    svg.appendChild(g);
+  });
+})();
+</script>
 {% endblock %}

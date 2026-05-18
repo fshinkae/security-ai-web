@@ -1,54 +1,85 @@
 {% extends "base.html" %}
-
-{% block title %}AEMS — Histórico de Diagnósticos{% endblock %}
+{% block title %}AEMS — Histórico{% endblock %}
 
 {% block content %}
-<div class="mb-8 flex items-center justify-between">
-  <h1 class="text-2xl font-bold">Histórico de Diagnósticos</h1>
 
-  <!-- Filtro por nível -->
-  <form method="GET" class="flex gap-2 items-center text-sm">
-    <select name="nivel"
-            onchange="this.form.submit()"
-            class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-      <option value=""       {% if not nivel %}selected{% endif %}>Todos os níveis</option>
-      <option value="baixo"  {% if nivel == "baixo"  %}selected{% endif %}>Baixo</option>
-      <option value="medio"  {% if nivel == "medio"  %}selected{% endif %}>Médio</option>
-      <option value="alto"   {% if nivel == "alto"   %}selected{% endif %}>Alto</option>
-    </select>
-  </form>
+<div class="mb-5 fade-up">
+  <p class="cyber-eyebrow mb-1">// HISTÓRICO DE DIAGNÓSTICOS</p>
 </div>
 
+<!-- Filtro -->
+<form method="GET" class="mb-5 fade-up" style="animation-delay:.08s">
+  <select name="nivel" onchange="this.form.submit()"
+          class="cyber-input"
+          style="background:var(--c-surface);border-color:rgba(0,255,255,0.1);color:var(--c-muted);font-family:var(--font-mono);font-size:12px;letter-spacing:2px;padding:11px 16px">
+    <option value=""      {% if not nivel %}selected{% endif %}>TODOS OS NÍVEIS</option>
+    <option value="baixo" {% if nivel == "baixo" %}selected{% endif %}>BAIXO RISCO</option>
+    <option value="medio" {% if nivel == "medio" %}selected{% endif %}>RISCO MÉDIO</option>
+    <option value="alto"  {% if nivel == "alto"  %}selected{% endif %}>ALTO RISCO</option>
+  </select>
+</form>
+
 {% if diagnosticos %}
-<div class="overflow-x-auto rounded-xl border border-gray-800">
-  <table class="w-full text-sm">
-    <thead class="bg-gray-900 text-gray-400 text-left">
+
+<!-- Mobile: list cards -->
+<div class="sm:hidden space-y-2 mb-5 fade-up" style="animation-delay:.12s">
+  {% for d in diagnosticos %}
+  <a href="{{ url_for('bp.resultado', diagnostico_id=d.id) }}"
+     class="flex items-center gap-3 p-4 rounded-xl no-underline transition"
+     style="background:var(--c-surface); border:1px solid rgba(255,255,255,0.05)">
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-medium text-white truncate">{{ d.nome or "Anônimo" }}</p>
+      <p class="text-xs mt-0.5 font-mono" style="color:var(--c-muted)">{{ d.criado_em[:10] }}</p>
+    </div>
+    <div class="text-right shrink-0">
+      <p class="font-mono font-bold text-lg
+        {% if d.nivel_risco == 'alto' %}text-red-400
+        {% elif d.nivel_risco == 'medio' %}text-yellow-300
+        {% else %}text-green-400{% endif %}">
+        {{ d.pontuacao }}
+        <span class="text-xs font-normal" style="color:var(--c-muted)">pts</span>
+      </p>
+      <span class="badge-{{ d.nivel_risco }}">{{ d.nivel_risco|upper }}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Desktop: table -->
+<div class="hidden sm:block overflow-x-auto rounded-xl mb-5 fade-up"
+     style="border:1px solid rgba(0,255,255,0.07); animation-delay:.12s">
+  <table class="cyber-table">
+    <thead>
       <tr>
-        <th class="px-4 py-3 font-medium">Nome</th>
-        <th class="px-4 py-3 font-medium text-center">Pontuação</th>
-        <th class="px-4 py-3 font-medium text-center">Nível</th>
-        <th class="px-4 py-3 font-medium">Data</th>
-        <th class="px-4 py-3"></th>
+        <th>NOME</th>
+        <th class="text-center">PONTUAÇÃO</th>
+        <th class="text-center">NÍVEL</th>
+        <th>DATA</th>
+        <th></th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-gray-800">
+    <tbody>
       {% for d in diagnosticos %}
-      <tr class="hover:bg-gray-900/50 transition">
-        <td class="px-4 py-3 text-gray-300">{{ d.nome or "—" }}</td>
-        <td class="px-4 py-3 text-center font-mono">{{ d.pontuacao }}/128</td>
-        <td class="px-4 py-3 text-center">
-          {% if d.nivel_risco == "alto" %}
-            <span class="text-red-400 text-xs font-semibold uppercase tracking-wide">Alto</span>
-          {% elif d.nivel_risco == "medio" %}
-            <span class="text-yellow-400 text-xs font-semibold uppercase tracking-wide">Médio</span>
-          {% else %}
-            <span class="text-green-400 text-xs font-semibold uppercase tracking-wide">Baixo</span>
-          {% endif %}
+      <tr>
+        <td>{{ d.nome or "—" }}</td>
+        <td class="text-center font-mono font-bold
+          {% if d.nivel_risco == 'alto' %}text-red-400
+          {% elif d.nivel_risco == 'medio' %}text-yellow-300
+          {% else %}text-green-400{% endif %}">
+          {{ d.pontuacao }}
         </td>
-        <td class="px-4 py-3 text-gray-500 text-xs">{{ d.criado_em[:10] }}</td>
-        <td class="px-4 py-3">
+        <td class="text-center">
+          <span class="badge-{{ d.nivel_risco }}">{{ d.nivel_risco|upper }}</span>
+        </td>
+        <td class="font-mono" style="color:rgba(255,255,255,0.35); font-size:11px">
+          {{ d.criado_em[:10] }}
+        </td>
+        <td>
           <a href="{{ url_for('bp.resultado', diagnostico_id=d.id) }}"
-             class="text-blue-400 hover:text-blue-300 text-xs underline">Ver</a>
+             class="font-mono text-xs no-underline"
+             style="color:var(--c-cyan)">
+            ver →
+          </a>
         </td>
       </tr>
       {% endfor %}
@@ -57,22 +88,24 @@
 </div>
 
 <!-- Paginação -->
-<div class="flex justify-between items-center mt-6 text-sm text-gray-500">
+<div class="flex justify-between items-center mt-4 fade-up" style="animation-delay:.18s">
   {% if pagina > 1 %}
     <a href="?pagina={{ pagina - 1 }}&nivel={{ nivel }}"
-       class="px-4 py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition text-white text-xs">
-      &#8592; Anterior
+       class="cyber-action-btn" style="flex:0;padding:10px 16px;font-size:11px">
+      ← Anterior
     </a>
   {% else %}
     <span></span>
   {% endif %}
 
-  <span>Página {{ pagina }}</span>
+  <span class="font-mono text-xs" style="color:rgba(255,255,255,0.25)">
+    PÁG. {{ pagina }}
+  </span>
 
   {% if tem_proxima %}
     <a href="?pagina={{ pagina + 1 }}&nivel={{ nivel }}"
-       class="px-4 py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition text-white text-xs">
-      Próxima &#8594;
+       class="cyber-action-btn" style="flex:0;padding:10px 16px;font-size:11px">
+      Próxima →
     </a>
   {% else %}
     <span></span>
@@ -80,13 +113,17 @@
 </div>
 
 {% else %}
-<div class="text-center py-16 text-gray-500">
-  <p class="text-4xl mb-4">&#128202;</p>
-  <p>Nenhum diagnóstico encontrado.</p>
-  <a href="{{ url_for('bp.index') }}"
-     class="inline-block mt-4 text-blue-400 hover:text-blue-300 text-sm underline">
-    Fazer o primeiro diagnóstico
+
+<div class="text-center py-16 fade-up" style="animation-delay:.1s">
+  <p class="font-mono text-3xl mb-4" style="color:rgba(0,255,255,0.2)">[ 0 ]</p>
+  <p class="font-mono text-xs mb-4" style="color:rgba(255,255,255,0.25); letter-spacing:3px">
+    NENHUM DIAGNÓSTICO ENCONTRADO
+  </p>
+  <a href="{{ url_for('bp.index') }}" class="cyber-action-btn primary"
+     style="display:inline-flex;width:auto;padding:12px 24px">
+    Fazer o primeiro diagnóstico →
   </a>
 </div>
+
 {% endif %}
 {% endblock %}

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from app.knowledge_base import (
-    PERGUNTAS,
+    ARVORE_PERGUNTAS,
     RESPOSTA_SEGURA_SIM,
     FATOS_INSEGUROS,
     criar_base_de_regras,
@@ -23,18 +23,17 @@ class MotorInferencia:
         self.respostas = respostas
 
     def executar(self) -> ResultadoInferencia:
-        # Inicializa o estado com os fatos derivados das respostas inseguras
         estado: set[str] = set()
         for pid, fato in FATOS_INSEGUROS.items():
-            if self.respostas.get(pid) != RESPOSTA_SEGURA_SIM[pid]:
-                estado.add(fato)
+            if pid in self.respostas:
+                if self.respostas[pid] != RESPOSTA_SEGURA_SIM[pid]:
+                    estado.add(fato)
 
         regras = criar_base_de_regras()
         regras_disparadas: list[str] = []
         pontuacao = 0
         recomendacoes: list[str] = []
 
-        # Forward chaining — itera até estabilizar
         mudou = True
         while mudou:
             mudou = False
@@ -47,19 +46,17 @@ class MotorInferencia:
                         recomendacoes.append(regra.recomendacao)
                         mudou = True
 
-        # Fatos derivados pelo motor (exclui hábitos iniciais)
         conclusoes = [f for f in estado if not f.startswith("habito_")]
 
-        # IDs de perguntas com resposta insegura
         falhas = [
-            p["id"]
-            for p in PERGUNTAS
-            if self.respostas.get(p["id"]) != RESPOSTA_SEGURA_SIM[p["id"]]
+            pid
+            for pid in self.respostas
+            if self.respostas[pid] != RESPOSTA_SEGURA_SIM.get(pid, not self.respostas[pid])
         ]
 
-        if pontuacao <= 42:
+        if pontuacao <= 15:
             nivel_risco = "baixo"
-        elif pontuacao <= 85:
+        elif pontuacao <= 35:
             nivel_risco = "medio"
         else:
             nivel_risco = "alto"
